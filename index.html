@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Record Collection Browser v2</title>
+    <link rel="preconnect" href="https://fonts.gstatic.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&family=Noto+Sans+JP:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+      :root {
+        --bg: #1A1A1A;
+        --surface: #2C2C2C;
+        --fg: #EAEAEA;
+        --fg-muted: #A0A0A0;
+        --border: #444444;
+        --accent: #FF6600;
+        --accent-hover: #FF8533;
+        --text-on-accent: #FFFFFF;
+        --radius: 8px;
+        --font-main: "Poppins", "Noto Sans JP", "Helvetica Neue", Arial, sans-serif;
+        --shadow-color: rgba(0, 0, 0, 0.3);
+        --shadow-hover-color: rgba(0, 0, 0, 0.5);
+        /* --accent-rgb will be set by JavaScript */
+      }
+      * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: var(--font-main);
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* Top bar */
+      header.topbar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        padding: 0.9rem 1.2rem;
+        text-align: center;
+        font-size: 1.2rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        box-shadow: 0 2px 8px var(--shadow-color);
+        z-index: 20;
+        color: var(--accent);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .topbar-title {
+        flex-grow: 1;
+        text-align: center;
+        margin-left: auto; 
+      }
+      #sortOptionsContainer {
+        margin-left: 1rem;
+        display: flex;
+        align-items: center;
+      }
+      #sortOptionsContainer label {
+        font-size: 0.8rem;
+        margin-right: 0.5rem;
+        color: var(--fg-muted);
+      }
+      #sortSelect {
+        background-color: var(--bg);
+        color: var(--fg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 0.3rem 0.5rem;
+        font-size: 0.8rem;
+      }
+      #sortSelect:focus {
+        outline: none;
+        border-color: var(--accent);
+      }
+
+
+      /* Content area */
+      #listContainer {
+        flex: 1 1 auto;
+        overflow-y: auto;
+        padding: calc(1.2rem + 60px + 40px) 1rem 9rem; 
+      }
+      #listContainer:empty::before {
+        content: "No records found.";
+        display: block;
+        padding: 2rem 1rem;
+        color: var(--fg-muted);
+        text-align: center;
+        font-size: 1rem;
+      }
+
+      /* Cards */
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1rem 1.2rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 5px var(--shadow-color);
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        position: relative; 
+      }
+      .card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 12px var(--shadow-hover-color);
+        border-color: var(--accent);
+      }
+      .title {
+        font-weight: 600;
+        color: var(--fg);
+        font-size: 1.05rem;
+        margin-right: 25px; 
+      }
+      .sub {
+        font-size: 0.85rem;
+        color: var(--fg-muted);
+        margin-top: 0.25rem;
+      }
+      .favorite-btn {
+        position: absolute;
+        top: 0.8rem;
+        right: 0.8rem;
+        font-size: 1.2rem;
+        color: var(--fg-muted);
+        cursor: pointer;
+        transition: color 0.2s ease, transform 0.2s ease;
+      }
+      .favorite-btn:hover {
+        color: var(--accent-hover);
+        transform: scale(1.1);
+      }
+      .favorite-btn.is-favorite {
+        color: var(--accent);
+      }
+      .favorite-btn .fa-star { 
+        font-weight: 900; 
+      }
+       .favorite-btn:not(.is-favorite) .fa-star {
+        font-weight: 400; 
+      }
+
+
+      /* Fixed footer */
+      footer {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+        box-shadow: 0 -2px 8px var(--shadow-color);
+        display: flex;
+        flex-direction: column;
+        padding: 0.8rem 1rem;
+        z-index: 15;
+      }
+
+      /* Search */
+      #searchInput {
+        width: 100%;
+        padding: 0.7rem 1rem;
+        border: 1px solid var(--border);
+        background-color: var(--bg);
+        color: var(--fg);
+        border-radius: var(--radius);
+        font-size: 1rem;
+        margin-bottom: 0.8rem;
+        transition: border-color 0.2s, box-shadow 0.2s;
+      }
+      #searchInput:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(var(--accent-rgb, 255, 102, 0), 0.3);
+      }
+      #searchInput::placeholder {
+        color: var(--fg-muted);
+      }
+
+      /* Tabs and other footer buttons */
+      .footer-controls {
+        display: flex;
+        gap: 0.6rem;
+        align-items: center;
+      }
+      .tabs {
+        display: flex;
+        gap: 0.6rem;
+        overflow-x: auto;
+        scrollbar-width: thin;
+        scrollbar-color: var(--accent) var(--surface);
+        padding-bottom: 5px; 
+        flex-grow: 1;
+      }
+      .tabs::-webkit-scrollbar {
+        height: 6px;
+      }
+      .tabs::-webkit-scrollbar-track {
+        background: var(--surface);
+        border-radius: var(--radius);
+      }
+      .tabs::-webkit-scrollbar-thumb {
+        background-color: var(--accent);
+        border-radius: var(--radius);
+      }
+
+      .tab,
+      #clearBtn,
+      #randomPickBtn {
+        flex: 0 0 auto; 
+        text-align: center;
+        padding: 0.55rem 0.9rem;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        font-size: 0.85rem;
+        background: var(--surface);
+        color: var(--fg-muted);
+        user-select: none;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background 0.2s, color 0.2s, border-color 0.2s;
+      }
+      .tab.active {
+        background: var(--accent);
+        color: var(--text-on-accent);
+        border-color: var(--accent);
+        font-weight: 600;
+      }
+      .tab:not(.active):hover,
+      #clearBtn:hover,
+      #randomPickBtn:hover {
+        background: var(--bg);
+        color: var(--fg);
+        border-color: var(--fg-muted);
+      }
+      #clearBtn, #randomPickBtn {
+        color: var(--accent);
+        font-weight: 600;
+        background: var(--surface);
+        border: 1px solid var(--accent);
+      }
+      #clearBtn:hover, #randomPickBtn:hover {
+        background: var(--accent-hover);
+        color: var(--text-on-accent);
+        border-color: var(--accent-hover);
+      }
+      #randomPickBtn {
+        padding: 0.55rem 0.7rem; 
+      }
+
+      /* Random Pick Modal (Simple) */
+      #randomPickModal {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background-color: var(--surface);
+        padding: 2rem;
+        border-radius: var(--radius);
+        box-shadow: 0 5px 15px var(--shadow-hover-color);
+        z-index: 100;
+        border: 1px solid var(--accent);
+        text-align: center;
+        display: none; 
+      }
+      #randomPickModal h3 {
+        margin-top: 0;
+        color: var(--accent);
+      }
+      #randomPickModal p {
+        margin-bottom: 0.5rem;
+      }
+      #randomPickModal button {
+        background-color: var(--accent);
+        color: var(--text-on-accent);
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: var(--radius);
+        cursor: pointer;
+        margin-top: 1rem;
+      }
+      #randomPickModal button:hover {
+        background-color: var(--accent-hover);
+      }
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.7);
+        z-index: 99;
+        display: none; 
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-title">Record Collection</div>
+      <div id="sortOptionsContainer">
+        <label for="sortSelect">Sort by:</label>
+        <select id="sortSelect">
+          {/* Options will be populated by JavaScript */}
+        </select>
+      </div>
+    </header>
+
+    <main id="listContainer"></main>
+
+    <footer>
+      <input
+        type="text"
+        id="searchInput"
+        placeholder="Search artist, album, track, genre, era…"
+        aria-label="Search"
+      />
+      <div class="footer-controls">
+        <div class="tabs" id="tabs">
+          <div class="tab active" data-tab="artist">Artist</div>
+          <div class="tab" data-tab="genre">Genre</div>
+          <div class="tab" data-tab="album">Album</div>
+          <div class="tab" data-tab="track">Track</div>
+          <div class="tab" data-tab="era">Era</div>
+        </div>
+        <button id="randomPickBtn" title="Random Pick"><i class="fas fa-random"></i></button>
+        <div id="clearBtn" title="Clear">Clear</div>
+      </div>
+    </footer>
+
+    <div class="modal-overlay" id="modalOverlay"></div>
+    <div id="randomPickModal">
+      <h3>Random Pick!</h3>
+      <p id="randomAlbumTitle"></p>
+      <p id="randomAlbumArtist"></p>
+      <p id="randomAlbumYearGenre"></p>
+      <button id="closeRandomPickModal">Close</button>
+    </div>
+
+    <script>
+      (function() {
+        const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+        if (accentColor.startsWith('#')) {
+          const r = parseInt(accentColor.slice(1, 3), 16);
+          const g = parseInt(accentColor.slice(3, 5), 16);
+          const b = parseInt(accentColor.slice(5, 7), 16);
+          document.documentElement.style.setProperty('--accent-rgb', `${r}, ${g}, ${b}`);
+        }
+      })();
+
+      const LOCAL_STORAGE_KEY = 'recordCollectionData_v2_en_user_collection'; // New key for distinct data
+
+      /* ------------------------------
+         INITIAL DATA (User's Collection Only)
+         ------------------------------ */
+      const INITIAL_DATA = {
+        artists: [
+          { id: "art-bill_evans", name: "Bill Evans", isFavorite: false }, // isFavorite reset to false as per instruction
+          { id: "art-adele", name: "Adele", isFavorite: false },
+          { id: "art-nujabes", name: "Nujabes", isFavorite: false },
+          { id: "art-dua_lipa", name: "Dua Lipa", isFavorite: false },
+          { id: "art-miles_davis", name: "Miles Davis", isFavorite: false },
+          { id: "art-olivia_rodrigo", name: "Olivia Rodrigo", isFavorite: false },
+          { id: "art-taylor_swift", name: "Taylor Swift", isFavorite: false },
+          { id: "art-maroon5", name: "Maroon 5", isFavorite: false },
+          { id: "art-norah_jones", name: "Norah Jones", isFavorite: false },
+          { id: "art-tatsuro_yamashita", name: "Tatsuro Yamashita", isFavorite: false },
+          { id: "art-the_beatles", name: "The Beatles", isFavorite: false },
+          { id: "art-lou_rawls", name: "Lou Rawls", isFavorite: false },
+          { id: "art-fuyumi_abe", name: "Fuyumi Abe", isFavorite: false },
+          { id: "art-earth_wind_fire", name: "Earth, Wind & Fire", isFavorite: false },
+          { id: "art-charlie_parker", name: "Charlie Parker", isFavorite: false },
+          { id: "art-dizzy_gillespie", name: "Dizzy Gillespie", isFavorite: false },
+          { id: "art-ahmad_jamal", name: "Ahmad Jamal", isFavorite: false },
+          { id: "art-frank_sinatra", name: "Frank Sinatra", isFavorite: false },
+          { id: "art-cannonball_adderley", name: "Cannonball Adderley", isFavorite: false },
+          { id: "art-aretha_franklin", name: "Aretha Franklin", isFavorite: false },
+        ],
+        genres: [ // Derived from the provided album list
+          "Jazz", "Pop", "Hip Hop", "Soul", "R&B", "Rock", "Folk", "Funk", "City Pop", "Vocal Jazz"
+        ],
+        albums: [
+          // Bill Evans
+          { id: "album-bill_evans-in_norway", title: "Bill Evans in Norway", artist: "Bill Evans", year: 1970, genre: "Jazz", isFavorite: false, cover: "placeholder/bill_evans_in_norway.jpg" },
+          { id: "album-bill_evans-waltz_for_debby", title: "Waltz for Debby", artist: "Bill Evans", year: 1962, genre: "Jazz", isFavorite: false, cover: "placeholder/bill_evans_waltz_for_debby.jpg" },
+          { id: "album-bill_evans-some_other_time", title: "Some Other Time: The Lost Session from The Black Forest", artist: "Bill Evans", year: 2016, genre: "Jazz", isFavorite: false, cover: "placeholder/bill_evans_some_other_time.jpg" },
+          
+          // Adele
+          { id: "album-adele-30", title: "30", artist: "Adele", year: 2021, genre: "Pop", isFavorite: false, cover: "placeholder/adele_30.jpg" },
+
+          // Nujabes
+          { id: "album-nujabes-first_collection", title: "First Collection", artist: "Nujabes", year: 2003, genre: "Hip Hop", isFavorite: false, cover: "placeholder/nujabes_first_collection.jpg" },
+
+          // Dua Lipa
+          { id: "album-dua_lipa-live_royal_albert", title: "Live From the Royal Albert Hall", artist: "Dua Lipa", year: 2024, genre: "Pop", isFavorite: false, cover: "placeholder/dua_lipa_live_royal_albert.jpg" },
+          { id: "album-dua_lipa-radical_optimism", title: "Radical Optimism", artist: "Dua Lipa", year: 2024, genre: "Pop", isFavorite: false, cover: "placeholder/dua_lipa_radical_optimism.jpg" },
+          
+          // Miles Davis
+          { id: "album-miles_davis-kind_of_blue", title: "Kind of Blue", artist: "Miles Davis", year: 1959, genre: "Jazz", isFavorite: false, cover: "placeholder/miles_davis_kind_of_blue.jpg" },
+
+          // Olivia Rodrigo
+          { id: "album-olivia_rodrigo-guts", title: "Guts", artist: "Olivia Rodrigo", year: 2023, genre: "Pop", isFavorite: false, cover: "placeholder/olivia_rodrigo_guts.jpg" },
+          
+          // Taylor Swift
+          { id: "album-taylor_swift-tortured_poets", title: "The Tortured Poets Department", artist: "Taylor Swift", year: 2024, genre: "Pop", isFavorite: false, cover: "placeholder/taylor_swift_tortured_poets.jpg" },
+
+          // Maroon 5
+          { id: "album-maroon5-jordi", title: "Jordi", artist: "Maroon 5", year: 2021, genre: "Pop", isFavorite: false, cover: "placeholder/maroon5_jordi.jpg" },
+
+          // Norah Jones
+          { id: "album-norah_jones-come_away_deluxe", title: "Come Away With Me - 20th Anniversary Deluxe Edition", artist: "Norah Jones", year: 2022, genre: "Jazz", isFavorite: false, cover: "placeholder/norah_jones_come_away_deluxe.jpg" },
+          
+          // Tatsuro Yamashita
+          { id: "album-tatsuro_yamashita-for_you", title: "For You", artist: "Tatsuro Yamashita", year: 1982, genre: "City Pop", isFavorite: false, cover: "placeholder/tatsuro_yamashita_for_you.jpg" },
+          { id: "album-tatsuro_yamashita-ride_on_time", title: "Ride On Time", artist: "Tatsuro Yamashita", year: 1980, genre: "City Pop", isFavorite: false, cover: "placeholder/tatsuro_yamashita_ride_on_time.jpg" },
+
+          // The Beatles
+          { id: "album-the_beatles-1967_1970", title: "1967-1970", artist: "The Beatles", year: 1973, genre: "Rock", isFavorite: false, cover: "placeholder/the_beatles_1967_1970.jpg" },
+          
+          // Lou Rawls
+          { id: "album-lou_rawls-tobacco_road", title: "Tobacco Road", artist: "Lou Rawls", year: 1963, genre: "Soul", isFavorite: false, cover: "placeholder/lou_rawls_tobacco_road.jpg" },
+
+          // Fuyumi Abe
+          { id: "album-fuyumi_abe-沈黙の恋人", title: "沈黙の恋人", artist: "Fuyumi Abe", year: 2014, genre: "Folk", isFavorite: false, cover: "placeholder/fuyumi_abe_沈黙の恋人.jpg" },
+          
+          // Earth, Wind & Fire
+          { id: "album-earth_wind_fire-greatest_hits", title: "Greatest Hits", artist: "Earth, Wind & Fire", year: 1998, genre: "Funk", isFavorite: false, cover: "placeholder/earth_wind_fire_greatest_hits.jpg" },
+          { id: "album-earth_wind_fire-thats_the_way", title: "That's The Way Of The World", artist: "Earth, Wind & Fire", year: 1975, genre: "Funk", isFavorite: false, cover: "placeholder/earth_wind_fire_thats_the_way.jpg" },
+
+          // Charlie Parker & Dizzy Gillespie
+          { id: "album-parker_gillespie-birdland", title: "Charlie Parker & Dizzy Gillespie Complete Live At Birdland", artist: "Charlie Parker", year: 1997, genre: "Jazz", isFavorite: false, cover: "placeholder/parker_gillespie_birdland.jpg" }, 
+
+          // Ahmad Jamal
+          { id: "album-ahmad_jamal-pershing", title: "Ahmad Jamal Trio at The Pershing", artist: "Ahmad Jamal", year: 1958, genre: "Jazz", isFavorite: false, cover: "placeholder/ahmad_jamal_pershing.jpg" },
+          
+          // Frank Sinatra
+          { id: "album-frank_sinatra-de_luxe", title: "Frank Sinatra De Luxe", artist: "Frank Sinatra", year: 1960, genre: "Vocal Jazz", isFavorite: false, cover: "placeholder/frank_sinatra_de_luxe.jpg" }, 
+          { id: "album-frank_sinatra-begin_the_beguine", title: "Begin The Beguine", artist: "Frank Sinatra", year: 1946, genre: "Vocal Jazz", isFavorite: false, cover: "placeholder/frank_sinatra_begin_the_beguine.jpg" }, 
+          
+          // Cannonball Adderley
+          { id: "album-cannonball_adderley-deluxe_double", title: "Cannonball Adderley Deluxe Double", artist: "Cannonball Adderley", year: 1975, genre: "Jazz", isFavorite: false, cover: "placeholder/cannonball_adderley_deluxe_double.jpg" }, 
+          
+          // Aretha Franklin
+          { id: "album-aretha_franklin-jump_to_it", title: "Jump to It", artist: "Aretha Franklin", year: 1982, genre: "R&B", isFavorite: false, cover: "placeholder/aretha_franklin_jump_to_it.jpg" },
+        ],
+        tracks: [
+          // Bill Evans - Bill Evans in Norway
+          { id: "track-be-norway-sleepin_bee", title: "Sleepin' Bee (A)", artist: "Bill Evans", albumId: "album-bill_evans-in_norway", albumTitle: "Bill Evans in Norway", isFavorite: false },
+          { id: "track-be-norway-polka_dots", title: "Polka Dots And Moonbeams (A)", artist: "Bill Evans", albumId: "album-bill_evans-in_norway", albumTitle: "Bill Evans in Norway", isFavorite: false },
+          { id: "track-be-norway-very_early", title: "Very Early (B)", artist: "Bill Evans", albumId: "album-bill_evans-in_norway", albumTitle: "Bill Evans in Norway", isFavorite: false },
+          { id: "track-be-norway-i_fall_in_love", title: "I Fall In Love Too Easily (B)", artist: "Bill Evans", albumId: "album-bill_evans-in_norway", albumTitle: "Bill Evans in Norway", isFavorite: false },
+          
+          // Bill Evans - Waltz for Debby
+          { id: "track-be-debby-my_foolish_heart", title: "My Foolish Heart (A)", artist: "Bill Evans", albumId: "album-bill_evans-waltz_for_debby", albumTitle: "Waltz for Debby", isFavorite: false },
+          { id: "track-be-debby-waltz_for_debby_a", title: "Waltz for Debby (Take 2) (A)", artist: "Bill Evans", albumId: "album-bill_evans-waltz_for_debby", albumTitle: "Waltz for Debby", isFavorite: false },
+          { id: "track-be-debby-detour_ahead", title: "Detour Ahead (Take 2) (A)", artist: "Bill Evans", albumId: "album-bill_evans-waltz_for_debby", albumTitle: "Waltz for Debby", isFavorite: false },
+          { id: "track-be-debby-my_romance", title: "My Romance (Take 1) (B)", artist: "Bill Evans", albumId: "album-bill_evans-waltz_for_debby", albumTitle: "Waltz for Debby", isFavorite: false },
+          { id: "track-be-debby-some_other_time_track", title: "Some Other Time (B)", artist: "Bill Evans", albumId: "album-bill_evans-waltz_for_debby", albumTitle: "Waltz for Debby", isFavorite: false }, // Renamed ID slightly
+          { id: "track-be-debby-milestones", title: "Milestones (B)", artist: "Bill Evans", albumId: "album-bill_evans-waltz_for_debby", albumTitle: "Waltz for Debby", isFavorite: false },
+
+          // Bill Evans - Some Other Time
+          { id: "track-be-sot-very_early_sot", title: "Very Early (A)", artist: "Bill Evans", albumId: "album-bill_evans-some_other_time", albumTitle: "Some Other Time: The Lost Session from The Black Forest", isFavorite: false },
+          { id: "track-be-sot-some_other_time_sot_track", title: "Some Other Time (A)", artist: "Bill Evans", albumId: "album-bill_evans-some_other_time", albumTitle: "Some Other Time: The Lost Session from The Black Forest", isFavorite: false }, // Renamed ID slightly
+          { id: "track-be-sot-in_a_sentimental_mood", title: "In a Sentimental Mood (B)", artist: "Bill Evans", albumId: "album-bill_evans-some_other_time", albumTitle: "Some Other Time: The Lost Session from The Black Forest", isFavorite: false },
+          { id: "track-be-sot-my_funny_valentine", title: "My Funny Valentine (B)", artist: "Bill Evans", albumId: "album-bill_evans-some_other_time", albumTitle: "Some Other Time: The Lost Session from The Black Forest", isFavorite: false },
+          
+          // Adele - 30
+          { id: "track-adele-30-strangers", title: "Strangers by Nature (A)", artist: "Adele", albumId: "album-adele-30", albumTitle: "30", isFavorite: false },
+          { id: "track-adele-30-easy_on_me", title: "Easy on Me (A)", artist: "Adele", albumId: "album-adele-30", albumTitle: "30", isFavorite: false },
+          { id: "track-adele-30-my_little_love", title: "My Little Love (A)", artist: "Adele", albumId: "album-adele-30", albumTitle: "30", isFavorite: false },
+          { id: "track-adele-30-cry_your_heart_out", title: "Cry Your Heart Out (B)", artist: "Adele", albumId: "album-adele-30", albumTitle: "30", isFavorite: false },
+          { id: "track-adele-30-oh_my_god", title: "Oh My God (B)", artist: "Adele", albumId: "album-adele-30", albumTitle: "30", isFavorite: false },
+          
+          // Nujabes - First Collection
+          { id: "track-nujabes-fc-moon_strut", title: "Moon Strut (Introduction) (A)", artist: "Nujabes", albumId: "album-nujabes-first_collection", albumTitle: "First Collection", isFavorite: false },
+          { id: "track-nujabes-fc-dont_cry", title: "Don't Cry (A)", artist: "Nujabes", albumId: "album-nujabes-first_collection", albumTitle: "First Collection", isFavorite: false },
+          { id: "track-nujabes-fc-luv_sic", title: "Luv(sic.) (A)", artist: "Nujabes", albumId: "album-nujabes-first_collection", albumTitle: "First Collection", isFavorite: false },
+          { id: "track-nujabes-fc-latitude", title: "Latitude (Remix) (B)", artist: "Nujabes", albumId: "album-nujabes-first_collection", albumTitle: "First Collection", isFavorite: false },
+          { id: "track-nujabes-fc-aint_no_mystery", title: "Ain't No Mystery (B)", artist: "Nujabes", albumId: "album-nujabes-first_collection", albumTitle: "First Collection", isFavorite: false },
+          
+          // Dua Lipa - Live From the Royal Albert Hall
+          { id: "track-dua_lipa-lra-physical", title: "Physical (Live) (A)", artist: "Dua Lipa", albumId: "album-dua_lipa-live_royal_albert", albumTitle: "Live From the Royal Albert Hall", isFavorite: false },
+          { id: "track-dua_lipa-lra-new_rules", title: "New Rules (Live) (A)", artist: "Dua Lipa", albumId: "album-dua_lipa-live_royal_albert", albumTitle: "Live From the Royal Albert Hall", isFavorite: false },
+          { id: "track-dua_lipa-lra-levitating", title: "Levitating (Live) (B)", artist: "Dua Lipa", albumId: "album-dua_lipa-live_royal_albert", albumTitle: "Live From the Royal Albert Hall", isFavorite: false },
+          { id: "track-dua_lipa-lra-dont_start_now", title: "Don't Start Now (Live) (B)", artist: "Dua Lipa", albumId: "album-dua_lipa-live_royal_albert", albumTitle: "Live From the Royal Albert Hall", isFavorite: false },
+
+          // Dua Lipa - Radical Optimism
+          { id: "track-dua_lipa-ro-end_of_an_era", title: "End of an Era (A)", artist: "Dua Lipa", albumId: "album-dua_lipa-radical_optimism", albumTitle: "Radical Optimism", isFavorite: false },
+          { id: "track-dua_lipa-ro-houdini", title: "Houdini (A)", artist: "Dua Lipa", albumId: "album-dua_lipa-radical_optimism", albumTitle: "Radical Optimism", isFavorite: false },
+          { id: "track-dua_lipa-ro-training_season", title: "Training Season (B)", artist: "Dua Lipa", albumId: "album-dua_lipa-radical_optimism", albumTitle: "Radical Optimism", isFavorite: false },
+          { id: "track-dua_lipa-ro-illusion", title: "Illusion (B)", artist: "Dua Lipa", albumId: "album-dua_lipa-radical_optimism", albumTitle: "Radical Optimism", isFavorite: false },
+
+          // Miles Davis - Kind of Blue
+          { id: "track-miles-kb-so_what", title: "So What (A)", artist: "Miles Davis", albumId: "album-miles_davis-kind_of_blue", albumTitle: "Kind of Blue", isFavorite: false },
+          { id: "track-miles-kb-freddie_freeloader", title: "Freddie Freeloader (A)", artist: "Miles Davis", albumId: "album-miles_davis-kind_of_blue", albumTitle: "Kind of Blue", isFavorite: false },
+          { id: "track-miles-kb-blue_in_green", title: "Blue in Green (A)", artist: "Miles Davis", albumId: "album-miles_davis-kind_of_blue", albumTitle: "Kind of Blue", isFavorite: false },
+          { id: "track-miles-kb-all_blues", title: "All Blues (B)", artist: "Miles Davis", albumId: "album-miles_davis-kind_of_blue", albumTitle: "Kind of Blue", isFavorite: false },
+          { id: "track-miles-kb-flamenco_sketches", title: "Flamenco Sketches (B)", artist: "Miles Davis", albumId: "album-miles_davis-kind_of_blue", albumTitle: "Kind of Blue", isFavorite: false },
+
+          // Olivia Rodrigo - Guts
+          { id: "track-olivia-guts-all_american_bitch", title: "all-american bitch (A)", artist: "Olivia Rodrigo", albumId: "album-olivia_rodrigo-guts", albumTitle: "Guts", isFavorite: false },
+          { id: "track-olivia-guts-bad_idea_right", title: "bad idea right? (A)", artist: "Olivia Rodrigo", albumId: "album-olivia_rodrigo-guts", albumTitle: "Guts", isFavorite: false },
+          { id: "track-olivia-guts-vampire", title: "vampire (B)", artist: "Olivia Rodrigo", albumId: "album-olivia_rodrigo-guts", albumTitle: "Guts", isFavorite: false },
+          { id: "track-olivia-guts-get_him_back", title: "get him back! (B)", artist: "Olivia Rodrigo", albumId: "album-olivia_rodrigo-guts", albumTitle: "Guts", isFavorite: false },
+
+          // Taylor Swift - The Tortured Poets Department
+          { id: "track-taylor-ttpd-fortnight", title: "Fortnight (feat. Post Malone) (A)", artist: "Taylor Swift", albumId: "album-taylor_swift-tortured_poets", albumTitle: "The Tortured Poets Department", isFavorite: false },
+          { id: "track-taylor-ttpd-the_tortured_poets_department_track", title: "The Tortured Poets Department (A)", artist: "Taylor Swift", albumId: "album-taylor_swift-tortured_poets", albumTitle: "The Tortured Poets Department", isFavorite: false }, // Renamed ID
+          { id: "track-taylor-ttpd-down_bad", title: "Down Bad (B)", artist: "Taylor Swift", albumId: "album-taylor_swift-tortured_poets", albumTitle: "The Tortured Poets Department", isFavorite: false },
+          { id: "track-taylor-ttpd-i_can_do_it_with_a_broken_heart", title: "I Can Do It With a Broken Heart (C)", artist: "Taylor Swift", albumId: "album-taylor_swift-tortured_poets", albumTitle: "The Tortured Poets Department", isFavorite: false },
+          { id: "track-taylor-ttpd-the_smallest_man_who_ever_lived", title: "The Smallest Man Who Ever Lived (D)", artist: "Taylor Swift", albumId: "album-taylor_swift-tortured_poets", albumTitle: "The Tortured Poets Department", isFavorite: false },
+          
+          // Maroon 5 - Jordi
+          { id: "track-maroon5-jordi-beautiful_mistakes", title: "Beautiful Mistakes (feat. Megan Thee Stallion) (A)", artist: "Maroon 5", albumId: "album-maroon5-jordi", albumTitle: "Jordi", isFavorite: false },
+          { id: "track-maroon5-jordi-lost", title: "Lost (A)", artist: "Maroon 5", albumId: "album-maroon5-jordi", albumTitle: "Jordi", isFavorite: false },
+          { id: "track-maroon5-jordi-memories", title: "Memories (B)", artist: "Maroon 5", albumId: "album-maroon5-jordi", albumTitle: "Jordi", isFavorite: false },
+          { id: "track-maroon5-jordi-nobodys_love", title: "Nobody's Love (B)", artist: "Maroon 5", albumId: "album-maroon5-jordi", albumTitle: "Jordi", isFavorite: false },
+          
+          // Norah Jones - Come Away With Me - 20th Anniversary Deluxe Edition
+          { id: "track-norah-deluxe-dont_know_why", title: "Don't Know Why (A)", artist: "Norah Jones", albumId: "album-norah_jones-come_away_deluxe", albumTitle: "Come Away With Me - 20th Anniversary Deluxe Edition", isFavorite: false },
+          { id: "track-norah-deluxe-come_away_with_me_track", title: "Come Away With Me (A)", artist: "Norah Jones", albumId: "album-norah_jones-come_away_deluxe", albumTitle: "Come Away With Me - 20th Anniversary Deluxe Edition", isFavorite: false }, // Renamed ID
+          { id: "track-norah-deluxe-turn_me_on", title: "Turn Me On (B)", artist: "Norah Jones", albumId: "album-norah_jones-come_away_deluxe", albumTitle: "Come Away With Me - 20th Anniversary Deluxe Edition", isFavorite: false },
+          
+          // Tatsuro Yamashita - For You
+          { id: "track-tatsuro-foryou-sparkle", title: "Sparkle (A)", artist: "Tatsuro Yamashita", albumId: "album-tatsuro_yamashita-for_you", albumTitle: "For You", isFavorite: false },
+          { id: "track-tatsuro-foryou-lovin_you", title: "Lovin' You (A)", artist: "Tatsuro Yamashita", albumId: "album-tatsuro_yamashita-for_you", albumTitle: "For You", isFavorite: false },
+          { id: "track-tatsuro-foryou-your_eyes", title: "Your Eyes (B)", artist: "Tatsuro Yamashita", albumId: "album-tatsuro_yamashita-for_you", albumTitle: "For You", isFavorite: false },
+          { id: "track-tatsuro-foryou-futari", title: "ふたり (B)", artist: "Tatsuro Yamashita", albumId: "album-tatsuro_yamashita-for_you", albumTitle: "For You", isFavorite: false },
+          
+          // Tatsuro Yamashita - Ride On Time
+          { id: "track-tatsuro-rideontime-itsuka", title: "いつか (Someday) (A)", artist: "Tatsuro Yamashita", albumId: "album-tatsuro_yamashita-ride_on_time", albumTitle: "Ride On Time", isFavorite: false }, // Corrected Katakana
+          { id: "track-tatsuro-rideontime-ride_on_time_single_track", title: "Ride On Time (Single Version) (A)", artist: "Tatsuro Yamashita", albumId: "album-tatsuro_yamashita-ride_on_time", albumTitle: "Ride On Time", isFavorite: false }, // Renamed ID
+          { id: "track-tatsuro-rideontime-natsu_e_no_tobira", title: "夏への扉 (The Door Into Summer) (B)", artist: "Tatsuro Yamashita", albumId: "album-tatsuro_yamashita-ride_on_time", albumTitle: "Ride On Time", isFavorite: false }, // Corrected Katakana
+          { id: "track-tatsuro-rideontime-my_sugar_babe", title: "My Sugar Babe (B)", artist: "Tatsuro Yamashita", albumId: "album-tatsuro_yamashita-ride_on_time", albumTitle: "Ride On Time", isFavorite: false },
+          
+          // The Beatles - 1967-1970
+          { id: "track-beatles-6770-strawberry_fields", title: "Strawberry Fields Forever (A)", artist: "The Beatles", albumId: "album-the_beatles-1967_1970", albumTitle: "1967-1970", isFavorite: false },
+          { id: "track-beatles-6770-penny_lane", title: "Penny Lane (A)", artist: "The Beatles", albumId: "album-the_beatles-1967_1970", albumTitle: "1967-1970", isFavorite: false },
+          { id: "track-beatles-6770-hey_jude", title: "Hey Jude (C)", artist: "The Beatles", albumId: "album-the_beatles-1967_1970", albumTitle: "1967-1970", isFavorite: false },
+          { id: "track-beatles-6770-let_it_be", title: "Let It Be (D)", artist: "The Beatles", albumId: "album-the_beatles-1967_1970", albumTitle: "1967-1970", isFavorite: false },
+
+          // Lou Rawls - Tobacco Road
+          { id: "track-lou_rawls-tr-tobacco_road_track", title: "Tobacco Road (A)", artist: "Lou Rawls", albumId: "album-lou_rawls-tobacco_road", albumTitle: "Tobacco Road", isFavorite: false }, // Renamed ID
+          { id: "track-lou_rawls-tr-stormy_monday", title: "Stormy Monday Blues (A)", artist: "Lou Rawls", albumId: "album-lou_rawls-tobacco_road", albumTitle: "Tobacco Road", isFavorite: false },
+          { id: "track-lou_rawls-tr-st_james_infirmary", title: "St. James Infirmary (B)", artist: "Lou Rawls", albumId: "album-lou_rawls-tobacco_road", albumTitle: "Tobacco Road", isFavorite: false },
+
+          // Fuyumi Abe - 沈黙の恋人
+          { id: "track-fuyumi_abe-sl-akehanatsu_mado", title: "開け放つ窓 (A)", artist: "Fuyumi Abe", albumId: "album-fuyumi_abe-沈黙の恋人", albumTitle: "沈黙の恋人", isFavorite: false }, // Corrected Katakana
+          { id: "track-fuyumi_abe-sl-chinmoku_no_koibito_track", title: "沈黙の恋人 (A)", artist: "Fuyumi Abe", albumId: "album-fuyumi_abe-沈黙の恋人", albumTitle: "沈黙の恋人", isFavorite: false }, // Renamed ID
+          { id: "track-fuyumi_abe-sl-machi_wa", title: "町は (B)", artist: "Fuyumi Abe", albumId: "album-fuyumi_abe-沈黙の恋人", albumTitle: "沈黙の恋人", isFavorite: false }, // Corrected Katakana
+          
+          // Earth, Wind & Fire - Greatest Hits
+          { id: "track-ewf-gh-september", title: "September (A)", artist: "Earth, Wind & Fire", albumId: "album-earth_wind_fire-greatest_hits", albumTitle: "Greatest Hits", isFavorite: false },
+          { id: "track-ewf-gh-boogie_wonderland", title: "Boogie Wonderland (A)", artist: "Earth, Wind & Fire", albumId: "album-earth_wind_fire-greatest_hits", albumTitle: "Greatest Hits", isFavorite: false },
+          { id: "track-ewf-gh-lets_groove", title: "Let's Groove (B)", artist: "Earth, Wind & Fire", albumId: "album-earth_wind_fire-greatest_hits", albumTitle: "Greatest Hits", isFavorite: false },
+          
+          // Earth, Wind & Fire - That's The Way Of The World
+          { id: "track-ewf-ttwotw-shining_star", title: "Shining Star (A)", artist: "Earth, Wind & Fire", albumId: "album-earth_wind_fire-thats_the_way", albumTitle: "That's The Way Of The World", isFavorite: false },
+          { id: "track-ewf-ttwotw-thats_the_way_track", title: "That's The Way Of The World (A)", artist: "Earth, Wind & Fire", albumId: "album-earth_wind_fire-thats_the_way", albumTitle: "That's The Way Of The World", isFavorite: false }, // Renamed ID
+          { id: "track-ewf-ttwotw-reasons", title: "Reasons (B)", artist: "Earth, Wind & Fire", albumId: "album-earth_wind_fire-thats_the_way", albumTitle: "That's The Way Of The World", isFavorite: false },
+          
+          // Charlie Parker & Dizzy Gillespie - Complete Live At Birdland
+          { id: "track-cpdg-birdland-ornithology", title: "Ornithology (A)", artist: "Charlie Parker", albumId: "album-parker_gillespie-birdland", albumTitle: "Charlie Parker & Dizzy Gillespie Complete Live At Birdland", isFavorite: false }, // Artist listed as Charlie Parker for simplicity here
+          { id: "track-cpdg-birdland-a_night_in_tunisia", title: "A Night in Tunisia (B)", artist: "Charlie Parker", albumId: "album-parker_gillespie-birdland", albumTitle: "Charlie Parker & Dizzy Gillespie Complete Live At Birdland", isFavorite: false },
+
+          // Ahmad Jamal - Ahmad Jamal Trio at The Pershing
+          { id: "track-ahmad_jamal-pershing-poinciana", title: "Poinciana (A)", artist: "Ahmad Jamal", albumId: "album-ahmad_jamal-pershing", albumTitle: "Ahmad Jamal Trio at The Pershing", isFavorite: false },
+          { id: "track-ahmad_jamal-pershing-but_not_for_me", title: "But Not For Me (A)", artist: "Ahmad Jamal", albumId: "album-ahmad_jamal-pershing", albumTitle: "Ahmad Jamal Trio at The Pershing", isFavorite: false },
+          { id: "track-ahmad_jamal-pershing-the_surrey_with_the_fringe_on_top", title: "The Surrey With The Fringe On Top (B)", artist: "Ahmad Jamal", albumId: "album-ahmad_jamal-pershing", albumTitle: "Ahmad Jamal Trio at The Pershing", isFavorite: false },
+          
+          // Frank Sinatra - De Luxe
+          { id: "track-sinatra-deluxe-my_way", title: "My Way (A)", artist: "Frank Sinatra", albumId: "album-frank_sinatra-de_luxe", albumTitle: "Frank Sinatra De Luxe", isFavorite: false },
+          { id: "track-sinatra-deluxe-strangers_in_the_night", title: "Strangers in the Night (B)", artist: "Frank Sinatra", albumId: "album-frank_sinatra-de_luxe", albumTitle: "Frank Sinatra De Luxe", isFavorite: false },
+
+          // Frank Sinatra - Begin The Beguine
+          { id: "track-sinatra-btb-begin_the_beguine_track", title: "Begin The Beguine (A)", artist: "Frank Sinatra", albumId: "album-frank_sinatra-begin_the_beguine", albumTitle: "Begin The Beguine", isFavorite: false }, // Renamed ID
+          { id: "track-sinatra-btb-night_and_day", title: "Night and Day (B)", artist: "Frank Sinatra", albumId: "album-frank_sinatra-begin_the_beguine", albumTitle: "Begin The Beguine", isFavorite: false },
+
+          // Cannonball Adderley - Deluxe Double
+          { id: "track-cannonball-dd-mercy_mercy_mercy", title: "Mercy, Mercy, Mercy (A)", artist: "Cannonball Adderley", albumId: "album-cannonball_adderley-deluxe_double", albumTitle: "Cannonball Adderley Deluxe Double", isFavorite: false },
+          { id: "track-cannonball-dd-work_song", title: "Work Song (B)", artist: "Cannonball Adderley", albumId: "album-cannonball_adderley-deluxe_double", albumTitle: "Cannonball Adderley Deluxe Double", isFavorite: false },
+          { id: "track-cannonball-dd-somethin_else", title: "Somethin' Else (C)", artist: "Cannonball Adderley", albumId: "album-cannonball_adderley-deluxe_double", albumTitle: "Cannonball Adderley Deluxe Double", isFavorite: false },
+
+          // Aretha Franklin - Jump to It
+          { id: "track-aretha-jti-jump_to_it_track", title: "Jump to It (A)", artist: "Aretha Franklin", albumId: "album-aretha_franklin-jump_to_it", albumTitle: "Jump to It", isFavorite: false }, // Renamed ID
+          { id: "track-aretha-jti-love_me_right", title: "Love Me Right (A)", artist: "Aretha Franklin", albumId: "album-aretha_franklin-jump_to_it", albumTitle: "Jump to It", isFavorite: false },
+          { id: "track-aretha-jti-its_your_thing", title: "It's Your Thing (B)", artist: "Aretha Franklin", albumId: "album-aretha_franklin-jump_to_it", albumTitle: "Jump to It", isFavorite: false },
+        ],
+      };
+      
+      function sanitizeInitialData(data) {
+          data.artists.forEach((item, i) => {
+              if (!item.id) item.id = `art-${Date.now()}-${i}`; 
+              if (typeof item.isFavorite === 'undefined') item.isFavorite = false;
+          });
+          data.albums.forEach((item, i) => {
+              if (!item.id) item.id = `alb-${Date.now()}-${i}`;
+              if (typeof item.isFavorite === 'undefined') item.isFavorite = false;
+          });
+          data.tracks.forEach((item, i) => {
+              if (!item.id) item.id = `trk-${Date.now()}-${i}`;
+              if (typeof item.isFavorite === 'undefined') item.isFavorite = false;
+              if (item.albumId && !item.albumTitle) {
+                  const album = data.albums.find(a => a.id === item.albumId);
+                  if (album) item.albumTitle = album.title;
+                  else console.warn(`Track "${item.title}" with ID "${item.id}" has albumId "${item.albumId}" but no matching album found to set albumTitle.`);
+              }
+          });
+          return data;
+      }
+      
+      let DATA = loadData(); 
+
+      /* ------------------------------
+         STATE
+         ------------------------------ */
+      let currentTab = "artist";
+      let selectedArtist = null;
+      let selectedAlbumId = null; 
+      let selectedEra = null;
+      let currentSortOption = ''; 
+
+      const tabsEl = document.getElementById("tabs");
+      const searchInput = document.getElementById("searchInput");
+      const listContainer = document.getElementById("listContainer");
+      const clearBtn = document.getElementById("clearBtn");
+      const sortSelect = document.getElementById("sortSelect");
+      const randomPickBtn = document.getElementById("randomPickBtn");
+      const randomPickModal = document.getElementById("randomPickModal");
+      const modalOverlay = document.getElementById("modalOverlay");
+      const closeRandomPickModalBtn = document.getElementById("closeRandomPickModal");
+
+      const enCollator = new Intl.Collator('en-US', {
+        numeric: true,
+        sensitivity: "base",
+      });
+
+      /* ------------------------------
+         DATA HANDLING (localStorage)
+         ------------------------------ */
+      function loadData() {
+        const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (storedData) {
+          try {
+            const parsed = JSON.parse(storedData);
+            if (parsed && parsed.artists && parsed.genres && parsed.albums && parsed.tracks) {
+                return sanitizeInitialData(parsed); 
+            } else {
+                console.warn("Stored data is missing essential keys. Reverting to initial data.");
+                localStorage.removeItem(LOCAL_STORAGE_KEY);
+                return sanitizeInitialData(JSON.parse(JSON.stringify(INITIAL_DATA)));
+            }
+          } catch (e) {
+            console.error("Error parsing data from localStorage:", e);
+            localStorage.removeItem(LOCAL_STORAGE_KEY); 
+            return sanitizeInitialData(JSON.parse(JSON.stringify(INITIAL_DATA))); 
+          }
+        }
+        return sanitizeInitialData(JSON.parse(JSON.stringify(INITIAL_DATA))); 
+      }
+
+      function saveData() {
+        try {
+          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(DATA));
+        } catch (e) {
+          console.error("Error saving data to localStorage:", e);
+        }
+      }
+      
+      /* ------------------------------
+         HELPERS
+         ------------------------------ */
+      const getDecades = () => {
+        if (!DATA || !DATA.albums) return [];
+        const set = new Set(
+          DATA.albums.map((a) => `${Math.floor(a.year / 10) * 10}s`)
+        );
+        return Array.from(set).sort((a, b) => parseInt(b) - parseInt(a)); 
+      };
+      
+      function normalizeForSearch(str) {
+        if (typeof str !== 'string') return '';
+        return str.normalize("NFKC").toLowerCase();
+      }
+
+      function filter(term) {
+        const t = term.trim(); 
+        const normalizedTerm = normalizeForSearch(t);
+        const contains = (value) => {
+            if (typeof value !== 'string' && typeof value !== 'number') return false;
+            return normalizeForSearch(String(value)).includes(normalizedTerm);
+        }
+        const decades = getDecades();
+
+        if (!t) {
+          return {
+            artists: DATA.artists ? DATA.artists.slice() : [], 
+            genres: DATA.genres ? DATA.genres.slice() : [],
+            albums: DATA.albums ? DATA.albums.slice() : [],
+            tracks: DATA.tracks ? DATA.tracks.slice() : [],
+            eras: decades,
+          };
+        }
+        return {
+          artists: DATA.artists ? DATA.artists.filter((a) => contains(a.name)) : [],
+          genres: DATA.genres ? DATA.genres.filter((g) => contains(g)) : [],
+          albums: DATA.albums ? DATA.albums.filter(
+            (a) =>
+              contains(a.title) ||
+              contains(a.artist) ||
+              contains(a.genre) ||
+              contains(a.year) ||
+              contains(`${Math.floor(a.year / 10) * 10}s`)
+          ) : [],
+          tracks: DATA.tracks ? DATA.tracks.filter(
+            (tr) =>
+              contains(tr.title) || contains(tr.artist) || contains(tr.albumTitle)
+          ) : [],
+          eras: decades.filter((d) => contains(d)),
+        };
+      }
+      
+      function sortItems(items, sortOption) {
+        if (!items || items.length === 0 || !sortOption) return items || [];
+        const [key, order] = sortOption.split('_');
+
+        return items.slice().sort((a, b) => {
+            let valA, valB;
+
+            if (key === 'name' || key === 'title' || key === 'genre' || key === 'artist' || key === 'albumTitle') {
+                valA = String(a[key] || (key === 'genre' && typeof a === 'string' ? a : ''));
+                valB = String(b[key] || (key === 'genre' && typeof b === 'string' ? b : ''));
+                const comparison = enCollator.compare(valA, valB); 
+                return order === 'desc' ? comparison * -1 : comparison;
+            } else if (key === 'year' || key === 'era') {
+                valA = parseInt(a.year || (key === 'era' ? (a.match(/\d+/)?.[0] || 0) : 0));
+                valB = parseInt(b.year || (key === 'era' ? (b.match(/\d+/)?.[0] || 0) : 0));
+                return order === 'desc' ? valB - valA : valA - valB;
+            } else if (key === 'favorite') { 
+                valA = a.isFavorite ? 1 : 0;
+                valB = b.isFavorite ? 1 : 0;
+                return order === 'desc' ? valB - valA : valA - valB; 
+            }
+            return 0;
+        });
+      }
+      
+      function updateSortOptions() {
+        sortSelect.innerHTML = ''; 
+        let options = [];
+        const defaultSorts = {
+            artist: "name_asc",
+            genre: "name_asc",
+            album: "title_asc",
+            track: "title_asc",
+            era: "era_desc"
+        };
+
+        switch (currentTab) {
+          case "artist":
+            options = [
+              { value: "name_asc", text: "Name (A-Z)" },
+              { value: "name_desc", text: "Name (Z-A)" },
+              { value: "favorite_desc", text: "Favorites First" },
+            ];
+            break;
+          case "genre":
+            options = [
+              { value: "name_asc", text: "Name (A-Z)" },
+              { value: "name_desc", text: "Name (Z-A)" },
+            ];
+            break;
+          case "album":
+            options = [
+              { value: "title_asc", text: "Title (A-Z)" },
+              { value: "title_desc", text: "Title (Z-A)" },
+              { value: "year_desc", text: "Year (Newest)" },
+              { value: "year_asc", text: "Year (Oldest)" },
+              { value: "artist_asc", text: "Artist (A-Z)" },
+              { value: "favorite_desc", text: "Favorites First" },
+            ];
+            break;
+          case "track":
+            options = [
+              { value: "title_asc", text: "Title (A-Z)" },
+              { value: "title_desc", text: "Title (Z-A)" },
+              { value: "artist_asc", text: "Artist (A-Z)" },
+              { value: "albumTitle_asc", text: "Album (A-Z)" },
+              { value: "favorite_desc", text: "Favorites First" },
+            ];
+            break;
+          case "era":
+            options = [
+              { value: "era_desc", text: "Era (Newest)" },
+              { value: "era_asc", text: "Era (Oldest)" },
+            ];
+            break;
+        }
+
+        options.forEach(opt => {
+          const optionEl = document.createElement('option');
+          optionEl.value = opt.value;
+          optionEl.textContent = opt.text;
+          sortSelect.appendChild(optionEl);
+        });
+        
+        if (!options.find(o => o.value === currentSortOption) || !currentSortOption) {
+            currentSortOption = defaultSorts[currentTab] || (options.length > 0 ? options[0].value : '');
+        }
+        sortSelect.value = currentSortOption;
+      }
+
+
+      function resetState() {
+        currentTab = "artist";
+        selectedArtist = null;
+        selectedAlbumId = null;
+        selectedEra = null;
+        delete listContainer.dataset.selectedGenre;
+        searchInput.value = "";
+        updateTabActive();
+        updateSortOptions(); 
+      }
+
+      function updateTabActive() {
+        [...tabsEl.querySelectorAll(".tab")].forEach((t) =>
+          t.classList.toggle("active", t.dataset.tab === currentTab)
+        );
+      }
+
+      /* ------------------------------
+         RENDER
+         ------------------------------ */
+      function render() {
+        const term = searchInput.value;
+        const filtered = filter(term);
+        let itemsToDisplay = [];
+        let html = "";
+
+        switch (currentTab) {
+          case "artist":
+            itemsToDisplay = sortItems(filtered.artists, currentSortOption);
+            html = itemsToDisplay.map(a => `
+                <div class="card" data-artist="${a.name}" data-id="${a.id}" data-type="artist">
+                  <span class="title">${a.name}</span>
+                  ${generateFavoriteButton(a.id, 'artist', a.isFavorite)}
+                </div>`).join("");
+            break;
+          case "genre":
+            itemsToDisplay = sortItems(filtered.genres, currentSortOption);
+            html = itemsToDisplay.map(g => `
+                <div class="card" data-genre="${g}">
+                  <span class="title">${g}</span>
+                </div>`).join("");
+            break;
+          case "album":
+            let albums = filtered.albums;
+            if (selectedArtist) albums = albums.filter(a => a.artist === selectedArtist);
+            if (selectedEra) albums = albums.filter(a => `${Math.floor(a.year / 10) * 10}s` === selectedEra);
+            const genreFilter = listContainer.dataset.selectedGenre;
+            if (genreFilter) albums = albums.filter(a => a.genre === genreFilter);
+            
+            itemsToDisplay = sortItems(albums, currentSortOption);
+            html = itemsToDisplay.map(a => `
+                <div class="card" data-album-id="${a.id}" data-type="album">
+                  <span class="title">${a.title}</span>
+                  <div class="sub">${a.artist} (${a.year}) - ${a.genre}</div>
+                  ${generateFavoriteButton(a.id, 'album', a.isFavorite)}
+                </div>`).join("");
+            break;
+          case "track":
+            let tracks = filtered.tracks;
+            if (selectedAlbumId) tracks = tracks.filter(t => t.albumId === selectedAlbumId);
+            
+            itemsToDisplay = sortItems(tracks, currentSortOption);
+            html = itemsToDisplay.map(t => `
+                <div class="card" data-id="${t.id}" data-type="track">
+                  <span class="title">${t.title}</span>
+                  <div class="sub">${t.artist} / ${t.albumTitle}</div>
+                  ${generateFavoriteButton(t.id, 'track', t.isFavorite)}
+                </div>`).join("");
+            break;
+          case "era":
+            itemsToDisplay = sortItems(filtered.eras, currentSortOption);
+            html = itemsToDisplay.map(e => `
+                <div class="card" data-era="${e}">
+                  <span class="title">${e}</span>
+                </div>`).join("");
+            break;
+        }
+        
+        listContainer.innerHTML = html || ''; 
+      }
+
+      function generateFavoriteButton(id, type, isFavorite) {
+        if (type !== 'album' && type !== 'track' && type !== 'artist') return '';
+        return `
+          <span 
+            class="favorite-btn ${isFavorite ? 'is-favorite' : ''}" 
+            data-id="${id}" 
+            data-type="${type}" 
+            title="${isFavorite ? 'Remove from favorites' : 'Add to favorites'}">
+            <i class="fas fa-star"></i>
+          </span>`;
+      }
+
+
+      /* ------------------------------
+         EVENTS
+         ------------------------------ */
+      tabsEl.addEventListener("click", (e) => {
+        const tab = e.target.closest(".tab");
+        if (!tab) return;
+        currentTab = tab.dataset.tab;
+        selectedArtist = null;
+        selectedAlbumId = null;
+        selectedEra = null;
+        delete listContainer.dataset.selectedGenre;
+        updateTabActive();
+        updateSortOptions(); 
+        render();
+      });
+
+      clearBtn.addEventListener("click", () => {
+        resetState();
+        render();
+      });
+
+      sortSelect.addEventListener("change", (e) => {
+        currentSortOption = e.target.value;
+        render();
+      });
+
+      searchInput.addEventListener("input", () => {
+        const term = searchInput.value.trim();
+        const filteredResults = filter(term);
+
+        if (term) {
+          if (!(filteredResults[currentTab] && filteredResults[currentTab].length > 0)) {
+            const order = ["artist", "album", "track", "genre", "era"];
+            const alternativeTab = order.find(
+              (tabKey) => tabKey !== currentTab && filteredResults[tabKey] && filteredResults[tabKey].length > 0
+            );
+            if (alternativeTab) {
+              currentTab = alternativeTab;
+              updateTabActive();
+              updateSortOptions(); 
+            }
+          }
+        }
+        render();
+      });
+
+
+      listContainer.addEventListener("click", (e) => {
+        const favoriteBtn = e.target.closest(".favorite-btn");
+        if (favoriteBtn) {
+          e.stopPropagation(); 
+          const id = favoriteBtn.dataset.id;
+          const type = favoriteBtn.dataset.type;
+          toggleFavorite(id, type);
+          return; 
+        }
+
+        const card = e.target.closest(".card");
+        if (!card) return;
+
+        const clickedArtistName = card.dataset.artist;
+        const clickedAlbumId = card.dataset.albumId; 
+        const clickedEra = card.dataset.era;
+        const clickedGenre = card.dataset.genre;
+
+        let filterChanged = false;
+
+        if (clickedArtistName) {
+          if (selectedArtist !== clickedArtistName || currentTab !== "album") filterChanged = true;
+          selectedArtist = clickedArtistName;
+          selectedAlbumId = null; 
+          selectedEra = null;
+          delete listContainer.dataset.selectedGenre;
+          currentTab = "album";
+        } else if (clickedAlbumId) {
+          if (selectedAlbumId !== clickedAlbumId || currentTab !== "track") filterChanged = true;
+          const album = DATA.albums.find(a => a.id === clickedAlbumId);
+          if (album) {
+            selectedArtist = album.artist; 
+            selectedAlbumId = clickedAlbumId;
+          }
+          selectedEra = null;
+          delete listContainer.dataset.selectedGenre;
+          currentTab = "track";
+        } else if (clickedEra) {
+          if (selectedEra !== clickedEra || currentTab !== "album") filterChanged = true;
+          selectedEra = clickedEra;
+          selectedArtist = null;
+          selectedAlbumId = null;
+          delete listContainer.dataset.selectedGenre;
+          currentTab = "album";
+        } else if (clickedGenre) {
+          if (listContainer.dataset.selectedGenre !== clickedGenre || currentTab !== "album") filterChanged = true;
+          listContainer.dataset.selectedGenre = clickedGenre;
+          selectedArtist = null;
+          selectedAlbumId = null;
+          selectedEra = null;
+          currentTab = "album";
+        }
+        
+        if (filterChanged) {
+            searchInput.value = ""; 
+        }
+
+        updateTabActive();
+        updateSortOptions();
+        render();
+      });
+
+      function toggleFavorite(id, type) {
+        let item;
+        let itemArray;
+
+        if (type === 'album') itemArray = DATA.albums;
+        else if (type === 'track') itemArray = DATA.tracks;
+        else if (type === 'artist') itemArray = DATA.artists;
+        else return;
+        
+        item = itemArray.find(i => i.id === id);
+        
+        if (item) {
+          item.isFavorite = !item.isFavorite;
+          saveData();
+          render(); 
+        }
+      }
+
+      randomPickBtn.addEventListener("click", () => {
+        if (!DATA.albums || DATA.albums.length === 0) {
+          alert("No albums in the collection.");
+          return;
+        }
+        const randomIndex = Math.floor(Math.random() * DATA.albums.length);
+        const pickedAlbum = DATA.albums[randomIndex];
+        
+        document.getElementById("randomAlbumTitle").textContent = `Album: ${pickedAlbum.title}`;
+        document.getElementById("randomAlbumArtist").textContent = `Artist: ${pickedAlbum.artist}`;
+        document.getElementById("randomAlbumYearGenre").textContent = `Released: ${pickedAlbum.year} / Genre: ${pickedAlbum.genre}`;
+        
+        randomPickModal.style.display = "block";
+        modalOverlay.style.display = "block";
+      });
+
+      closeRandomPickModalBtn.addEventListener("click", () => {
+        randomPickModal.style.display = "none";
+        modalOverlay.style.display = "none";
+      });
+      modalOverlay.addEventListener("click", () => { 
+        randomPickModal.style.display = "none";
+        modalOverlay.style.display = "none";
+      });
+
+      /* Init */
+      resetState(); 
+      render();
+    </script>
+  </body>
+</html>
